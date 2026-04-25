@@ -32,6 +32,15 @@
   },
   "entity": {
     "sensor": {
+      "daily_import_kwh": {
+        "name": "Dnevni odjem iz omrezja"
+      },
+      "daily_export_kwh": {
+        "name": "Dnevna oddaja v omrezje"
+      },
+      "daily_balance_kwh": {
+        "name": "Dnevni saldo"
+      },
       "today_consumption_kwh": {
         "name": "Danasnji odjem iz omrezja"
       },

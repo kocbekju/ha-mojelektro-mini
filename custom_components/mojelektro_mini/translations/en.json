@@ -32,6 +32,15 @@
   },
   "entity": {
     "sensor": {
+      "daily_import_kwh": {
+        "name": "Daily grid consumption"
+      },
+      "daily_export_kwh": {
+        "name": "Daily grid export"
+      },
+      "daily_balance_kwh": {
+        "name": "Daily balance"
+      },
       "today_consumption_kwh": {
         "name": "Today grid consumption"
       },

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 import logging
 from typing import Any
 
+from homeassistant.components.recorder.models import StatisticData, StatisticMeanType, StatisticMetaData
+from homeassistant.components.recorder.statistics import async_import_statistics, get_last_statistics
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import PRODUCTION_URL, TEST_URL, MojelektroApiError, MojelektroClient, ReadingPoint
 from .const import (
@@ -37,6 +40,9 @@ MAX_API_INTERVAL_DAYS = 35
 
 @dataclass(frozen=True)
 class MojelektroData:
+    daily_import_kwh: Decimal | None
+    daily_export_kwh: Decimal | None
+    daily_balance_kwh: Decimal | None
     today_consumption_kwh: Decimal | None
     today_export_kwh: Decimal | None
     today_balance_kwh: Decimal | None
@@ -74,6 +80,8 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             entry.data[CONF_API_TOKEN],
             base_url,
         )
+        self._daily_series: dict[str, dict[date, Decimal]] = {}
+        self._daily_stat_entities: dict[str, tuple[str, str]] = {}
 
     async def _async_update_data(self) -> MojelektroData:
         today = date.today()
@@ -139,8 +147,25 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             year_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
             year_state_readings.get(READING_TYPE_STATE_EXPORT),
         )
+        daily_import_series = _daily_totals_from_state(
+            year_state_readings.get(READING_TYPE_STATE_CONSUMPTION)
+        )
+        daily_export_series = _daily_totals_from_state(
+            year_state_readings.get(READING_TYPE_STATE_EXPORT)
+        )
+        daily_balance_series = _daily_balance_series(daily_import_series, daily_export_series)
+        self._daily_series = {
+            "daily_import_kwh": daily_import_series,
+            "daily_export_kwh": daily_export_series,
+            "daily_balance_kwh": daily_balance_series,
+        }
+        await self._async_import_missing_daily_statistics()
+        latest_completed_day = _latest_completed_day(today)
 
         return MojelektroData(
+            daily_import_kwh=daily_import_series.get(latest_completed_day),
+            daily_export_kwh=daily_export_series.get(latest_completed_day),
+            daily_balance_kwh=daily_balance_series.get(latest_completed_day),
             today_consumption_kwh=today_consumption,
             today_export_kwh=today_export,
             today_balance_kwh=_balance(today_consumption, today_export),
@@ -157,6 +182,19 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             allowed_export_power_kw=_decimal(self.entry.data.get(CONF_ALLOWED_EXPORT_POWER)),
             installed_production_power_kw=_decimal(self.entry.data.get(CONF_INSTALLED_PRODUCTION_POWER)),
         )
+
+    @property
+    def daily_series(self) -> dict[str, dict[date, Decimal]]:
+        return self._daily_series
+
+    async def async_register_daily_statistic_entity(
+        self,
+        key: str,
+        entity_id: str,
+        name: str,
+    ) -> None:
+        self._daily_stat_entities[key] = (entity_id, name)
+        await self._async_import_missing_daily_statistics()
 
     async def _async_get_agreed_power(self) -> tuple[
         Decimal | None,
@@ -201,6 +239,47 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 merged.setdefault(reading_type, []).extend(points)
 
         return merged
+
+    async def _async_import_missing_daily_statistics(self) -> None:
+        if not self._daily_series or not self._daily_stat_entities:
+            return
+
+        for key, series in self._daily_series.items():
+            entity_meta = self._daily_stat_entities.get(key)
+            if entity_meta is None or not series:
+                continue
+
+            entity_id, name = entity_meta
+            imported_from = await self.hass.async_add_executor_job(
+                _last_imported_day,
+                self.hass,
+                entity_id,
+            )
+            statistics: list[StatisticData] = []
+
+            for day in sorted(series):
+                if imported_from is not None and day <= imported_from:
+                    continue
+                statistics.append(
+                    {
+                        "start": _day_start_local(day),
+                        "state": float(series[day]),
+                    }
+                )
+
+            if not statistics:
+                continue
+
+            metadata: StatisticMetaData = {
+                "has_sum": False,
+                "mean_type": StatisticMeanType.NONE,
+                "name": name,
+                "source": "recorder",
+                "statistic_id": entity_id,
+                "unit_class": None,
+                "unit_of_measurement": "kWh",
+            }
+            async_import_statistics(self.hass, metadata, statistics)
 
 
 def _valid_points(points: list[ReadingPoint] | None) -> list[ReadingPoint]:
@@ -273,6 +352,38 @@ def _total_from_state(points: list[ReadingPoint] | None) -> Decimal | None:
     return total
 
 
+def _daily_totals_from_state(points: list[ReadingPoint] | None) -> dict[date, Decimal]:
+    valid = sorted(_valid_points(points), key=lambda point: point.timestamp)
+    if len(valid) < 2:
+        return {}
+
+    totals: dict[date, Decimal] = {}
+    previous = valid[0].value
+
+    for point in valid[1:]:
+        if point.value >= previous:
+            delta = point.value - previous
+        else:
+            delta = point.value
+
+        day = _bucket_day(point.timestamp)
+        totals[day] = totals.get(day, Decimal("0")) + delta
+        previous = point.value
+
+    return totals
+
+
+def _daily_balance_series(
+    import_series: dict[date, Decimal],
+    export_series: dict[date, Decimal],
+) -> dict[date, Decimal]:
+    days = set(import_series) | set(export_series)
+    return {
+        day: export_series.get(day, Decimal("0")) - import_series.get(day, Decimal("0"))
+        for day in days
+    }
+
+
 def _iter_date_chunks(
     start: date,
     end: date,
@@ -288,6 +399,33 @@ def _iter_date_chunks(
         current = chunk_end + timedelta(days=1)
 
     return chunks
+
+
+def _bucket_day(timestamp: str) -> date:
+    moment = datetime.fromisoformat(timestamp)
+    local_day = moment.date()
+    if moment.timetz().replace(tzinfo=None) == time.min:
+        return local_day - timedelta(days=1)
+    return local_day
+
+
+def _latest_completed_day(today: date) -> date:
+    return today - timedelta(days=1)
+
+
+def _day_start_local(day: date) -> datetime:
+    return datetime.combine(day, time.min, tzinfo=dt_util.DEFAULT_TIME_ZONE)
+
+
+def _last_imported_day(hass: HomeAssistant, statistic_id: str) -> date | None:
+    rows = get_last_statistics(hass, 1, statistic_id, False, {"state"}).get(statistic_id)
+    if not rows:
+        return None
+
+    start = rows[0].get("start")
+    if isinstance(start, datetime):
+        return start.date()
+    return None
 
 
 def _select_active_agreed_power(

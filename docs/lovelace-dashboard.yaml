@@ -30,6 +30,21 @@ views:
           - entity: sensor.mojelektro_today_grid_export
             name: Oddaja
 
+      - type: statistics-graph
+        title: Dnevni tokovi in saldo
+        chart_type: bar
+        days_to_show: 30
+        period: day
+        stat_types:
+          - state
+        entities:
+          - entity: sensor.mojelektro_daily_grid_consumption
+            name: Dnevni odjem
+          - entity: sensor.mojelektro_daily_grid_export
+            name: Dnevna oddaja
+          - entity: sensor.mojelektro_daily_balance
+            name: Dnevni saldo
+
       - type: history-graph
         title: 15-min moci
         hours_to_show: 24
