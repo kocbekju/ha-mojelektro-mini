@@ -26,6 +26,8 @@ from .const import (
     READING_TYPE_EXPORT,
     READING_TYPE_MAX_EXPORT_POWER,
     READING_TYPE_MAX_IMPORT_POWER,
+    READING_TYPE_STATE_CONSUMPTION,
+    READING_TYPE_STATE_EXPORT,
 )
 
 
@@ -83,6 +85,10 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             READING_TYPE_MAX_IMPORT_POWER,
             READING_TYPE_MAX_EXPORT_POWER,
         ]
+        state_reading_types = [
+            READING_TYPE_STATE_CONSUMPTION,
+            READING_TYPE_STATE_EXPORT,
+        ]
 
         try:
             today_readings = await self.client.async_get_meter_readings(
@@ -97,11 +103,23 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 today,
                 reading_types,
             )
+            month_state_readings = await self._async_get_meter_readings_chunked(
+                self.entry.data[CONF_USAGE_POINT],
+                month_start,
+                today,
+                state_reading_types,
+            )
             year_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
                 year_start,
                 today,
                 reading_types,
+            )
+            year_state_readings = await self._async_get_meter_readings_chunked(
+                self.entry.data[CONF_USAGE_POINT],
+                year_start,
+                today,
+                state_reading_types,
             )
             agreed_power = await self._async_get_agreed_power()
         except MojelektroApiError as err:
@@ -113,13 +131,21 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
         month_export = _sum(month_readings.get(READING_TYPE_EXPORT))
         year_consumption = _sum(year_readings.get(READING_TYPE_CONSUMPTION))
         year_export = _sum(year_readings.get(READING_TYPE_EXPORT))
+        month_balance = _state_balance(
+            month_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
+            month_state_readings.get(READING_TYPE_STATE_EXPORT),
+        )
+        year_balance = _state_balance(
+            year_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
+            year_state_readings.get(READING_TYPE_STATE_EXPORT),
+        )
 
         return MojelektroData(
             today_consumption_kwh=today_consumption,
             today_export_kwh=today_export,
             today_balance_kwh=_balance(today_consumption, today_export),
-            month_balance_kwh=_balance(month_consumption, month_export),
-            year_balance_kwh=_balance(year_consumption, year_export),
+            month_balance_kwh=month_balance if month_balance is not None else _balance(month_consumption, month_export),
+            year_balance_kwh=year_balance if year_balance is not None else _balance(year_consumption, year_export),
             max_import_power_kw=_max(today_readings.get(READING_TYPE_MAX_IMPORT_POWER)),
             max_export_power_kw=_max(today_readings.get(READING_TYPE_MAX_EXPORT_POWER)),
             agreed_power_block_1_kw=agreed_power[0],
@@ -216,6 +242,35 @@ def _balance(consumption: Decimal | None, export: Decimal | None) -> Decimal | N
     if consumption is not None and export is not None:
         return export - consumption
     return None
+
+
+def _state_balance(
+    consumption_points: list[ReadingPoint] | None,
+    export_points: list[ReadingPoint] | None,
+) -> Decimal | None:
+    consumption_total = _total_from_state(consumption_points)
+    export_total = _total_from_state(export_points)
+    if consumption_total is None or export_total is None:
+        return None
+    return export_total - consumption_total
+
+
+def _total_from_state(points: list[ReadingPoint] | None) -> Decimal | None:
+    valid = sorted(_valid_points(points), key=lambda point: point.timestamp)
+    if len(valid) < 2:
+        return None
+
+    total = Decimal("0")
+    previous = valid[0].value
+
+    for point in valid[1:]:
+        if point.value >= previous:
+            total += point.value - previous
+        else:
+            total += point.value
+        previous = point.value
+
+    return total
 
 
 def _iter_date_chunks(

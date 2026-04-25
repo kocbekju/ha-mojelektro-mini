@@ -63,6 +63,8 @@ balance = exported_to_grid - imported_from_grid
 
 With the example `imported=10 kWh`, `production=60 kWh`, `exported=45 kWh`, the daily balance is `35 kWh`.
 
+For monthly and yearly saldo, the integration prefers Moj Elektro `24 h` state readings with reset handling so the result matches the portal more closely than a plain sum of `15-min` intervals.
+
 ## Visualization
 
 The integration does not ship a custom frontend yet, but Home Assistant Lovelace is a good fit here.
