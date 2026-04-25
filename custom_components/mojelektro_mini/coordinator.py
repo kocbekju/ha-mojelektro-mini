@@ -64,6 +64,19 @@ class MojelektroData:
     installed_production_power_kw: Decimal | None
 
 
+@dataclass(frozen=True)
+class HistoryData:
+    daily_import_series: dict[date, Decimal]
+    daily_export_series: dict[date, Decimal]
+    daily_balance_series: dict[date, Decimal]
+    month_import_kwh: Decimal | None
+    month_export_kwh: Decimal | None
+    month_balance_kwh: Decimal | None
+    year_import_kwh: Decimal | None
+    year_export_kwh: Decimal | None
+    year_balance_kwh: Decimal | None
+
+
 class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         super().__init__(
@@ -86,6 +99,16 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
         )
         self._daily_series: dict[str, dict[date, Decimal]] = {}
         self._daily_stat_entities: dict[str, tuple[str, str]] = {}
+        self._history_cache_day: date | None = None
+        self._history_cache: HistoryData | None = None
+        self._agreed_power_cache_day: date | None = None
+        self._agreed_power_cache: tuple[
+            Decimal | None,
+            Decimal | None,
+            Decimal | None,
+            Decimal | None,
+            Decimal | None,
+        ] | None = None
 
     async def _async_update_data(self) -> MojelektroData:
         today = date.today()
@@ -97,15 +120,6 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             READING_TYPE_MAX_IMPORT_POWER,
             READING_TYPE_MAX_EXPORT_POWER,
         ]
-        interval_energy_reading_types = [
-            READING_TYPE_CONSUMPTION,
-            READING_TYPE_EXPORT,
-        ]
-        state_reading_types = [
-            READING_TYPE_STATE_CONSUMPTION,
-            READING_TYPE_STATE_EXPORT,
-        ]
-
         try:
             today_readings = await self.client.async_get_meter_readings(
                 self.entry.data[CONF_USAGE_POINT],
@@ -113,84 +127,34 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 today,
                 today_reading_types,
             )
-            month_interval_readings = await self._async_get_meter_readings_chunked(
-                self.entry.data[CONF_USAGE_POINT],
-                month_start,
-                today,
-                interval_energy_reading_types,
-            )
-            month_state_readings = await self._async_get_meter_readings_chunked(
-                self.entry.data[CONF_USAGE_POINT],
-                month_start,
-                today,
-                state_reading_types,
-            )
-            year_interval_readings = await self._async_get_meter_readings_chunked(
-                self.entry.data[CONF_USAGE_POINT],
-                year_start,
-                today,
-                interval_energy_reading_types,
-            )
-            year_state_readings = await self._async_get_meter_readings_chunked(
-                self.entry.data[CONF_USAGE_POINT],
-                year_start,
-                today,
-                state_reading_types,
-            )
-            agreed_power = await self._async_get_agreed_power()
+            history = await self._async_get_history_data(today, month_start, year_start)
+            agreed_power = await self._async_get_agreed_power_cached(today)
         except MojelektroApiError as err:
             raise UpdateFailed(str(err)) from err
 
         today_consumption = _sum(today_readings.get(READING_TYPE_CONSUMPTION))
         today_export = _sum(today_readings.get(READING_TYPE_EXPORT))
-        month_consumption = _total_from_state(month_state_readings.get(READING_TYPE_STATE_CONSUMPTION))
-        month_export = _total_from_state(month_state_readings.get(READING_TYPE_STATE_EXPORT))
-        year_consumption = _total_from_state(year_state_readings.get(READING_TYPE_STATE_CONSUMPTION))
-        year_export = _total_from_state(year_state_readings.get(READING_TYPE_STATE_EXPORT))
-        if month_consumption is None:
-            month_consumption = _sum(month_interval_readings.get(READING_TYPE_CONSUMPTION))
-        if month_export is None:
-            month_export = _sum(month_interval_readings.get(READING_TYPE_EXPORT))
-        if year_consumption is None:
-            year_consumption = _sum(year_interval_readings.get(READING_TYPE_CONSUMPTION))
-        if year_export is None:
-            year_export = _sum(year_interval_readings.get(READING_TYPE_EXPORT))
-        month_balance = _state_balance(
-            month_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
-            month_state_readings.get(READING_TYPE_STATE_EXPORT),
-        )
-        year_balance = _state_balance(
-            year_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
-            year_state_readings.get(READING_TYPE_STATE_EXPORT),
-        )
-        daily_import_series = _daily_totals_from_state(
-            year_state_readings.get(READING_TYPE_STATE_CONSUMPTION)
-        )
-        daily_export_series = _daily_totals_from_state(
-            year_state_readings.get(READING_TYPE_STATE_EXPORT)
-        )
-        daily_balance_series = _daily_balance_series(daily_import_series, daily_export_series)
         self._daily_series = {
-            "daily_import_kwh": daily_import_series,
-            "daily_export_kwh": daily_export_series,
-            "daily_balance_kwh": daily_balance_series,
+            "daily_import_kwh": history.daily_import_series,
+            "daily_export_kwh": history.daily_export_series,
+            "daily_balance_kwh": history.daily_balance_series,
         }
         await self._async_import_missing_daily_statistics()
         latest_completed_day = _latest_completed_day(today)
 
         return MojelektroData(
-            daily_import_kwh=daily_import_series.get(latest_completed_day),
-            daily_export_kwh=daily_export_series.get(latest_completed_day),
-            daily_balance_kwh=daily_balance_series.get(latest_completed_day),
+            daily_import_kwh=history.daily_import_series.get(latest_completed_day),
+            daily_export_kwh=history.daily_export_series.get(latest_completed_day),
+            daily_balance_kwh=history.daily_balance_series.get(latest_completed_day),
             today_consumption_kwh=today_consumption,
             today_export_kwh=today_export,
             today_balance_kwh=_balance(today_consumption, today_export),
-            month_import_kwh=month_consumption,
-            month_export_kwh=month_export,
-            month_balance_kwh=month_balance if month_balance is not None else _balance(month_consumption, month_export),
-            year_import_kwh=year_consumption,
-            year_export_kwh=year_export,
-            year_balance_kwh=year_balance if year_balance is not None else _balance(year_consumption, year_export),
+            month_import_kwh=history.month_import_kwh,
+            month_export_kwh=history.month_export_kwh,
+            month_balance_kwh=history.month_balance_kwh,
+            year_import_kwh=history.year_import_kwh,
+            year_export_kwh=history.year_export_kwh,
+            year_balance_kwh=history.year_balance_kwh,
             max_import_power_kw=_max(today_readings.get(READING_TYPE_MAX_IMPORT_POWER)),
             max_export_power_kw=_max(today_readings.get(READING_TYPE_MAX_EXPORT_POWER)),
             agreed_power_block_1_kw=agreed_power[0],
@@ -202,6 +166,68 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             allowed_export_power_kw=_decimal(self.entry.data.get(CONF_ALLOWED_EXPORT_POWER)),
             installed_production_power_kw=_decimal(self.entry.data.get(CONF_INSTALLED_PRODUCTION_POWER)),
         )
+
+    async def _async_get_history_data(
+        self,
+        today: date,
+        month_start: date,
+        year_start: date,
+    ) -> HistoryData:
+        if self._history_cache_day == today and self._history_cache is not None:
+            return self._history_cache
+
+        year_state_readings = await self._async_get_meter_readings_chunked(
+            self.entry.data[CONF_USAGE_POINT],
+            year_start,
+            today,
+            [
+                READING_TYPE_STATE_CONSUMPTION,
+                READING_TYPE_STATE_EXPORT,
+            ],
+        )
+        daily_import_series = _daily_totals_from_state(
+            year_state_readings.get(READING_TYPE_STATE_CONSUMPTION)
+        )
+        daily_export_series = _daily_totals_from_state(
+            year_state_readings.get(READING_TYPE_STATE_EXPORT)
+        )
+        daily_balance_series = _daily_balance_series(daily_import_series, daily_export_series)
+        month_import = _sum_series_from(daily_import_series, month_start)
+        month_export = _sum_series_from(daily_export_series, month_start)
+        year_import = _sum_series_from(daily_import_series, year_start)
+        year_export = _sum_series_from(daily_export_series, year_start)
+        history = HistoryData(
+            daily_import_series=daily_import_series,
+            daily_export_series=daily_export_series,
+            daily_balance_series=daily_balance_series,
+            month_import_kwh=month_import,
+            month_export_kwh=month_export,
+            month_balance_kwh=_balance(month_import, month_export),
+            year_import_kwh=year_import,
+            year_export_kwh=year_export,
+            year_balance_kwh=_balance(year_import, year_export),
+        )
+        self._history_cache_day = today
+        self._history_cache = history
+        return history
+
+    async def _async_get_agreed_power_cached(
+        self,
+        today: date,
+    ) -> tuple[
+        Decimal | None,
+        Decimal | None,
+        Decimal | None,
+        Decimal | None,
+        Decimal | None,
+    ]:
+        if self._agreed_power_cache_day == today and self._agreed_power_cache is not None:
+            return self._agreed_power_cache
+
+        agreed_power = await self._async_get_agreed_power()
+        self._agreed_power_cache_day = today
+        self._agreed_power_cache = agreed_power
+        return agreed_power
 
     @property
     def daily_series(self) -> dict[str, dict[date, Decimal]]:
@@ -343,17 +369,6 @@ def _balance(consumption: Decimal | None, export: Decimal | None) -> Decimal | N
     return None
 
 
-def _state_balance(
-    consumption_points: list[ReadingPoint] | None,
-    export_points: list[ReadingPoint] | None,
-) -> Decimal | None:
-    consumption_total = _total_from_state(consumption_points)
-    export_total = _total_from_state(export_points)
-    if consumption_total is None or export_total is None:
-        return None
-    return export_total - consumption_total
-
-
 def _total_from_state(points: list[ReadingPoint] | None) -> Decimal | None:
     valid = sorted(_valid_points(points), key=lambda point: point.timestamp)
     if len(valid) < 2:
@@ -402,6 +417,13 @@ def _daily_balance_series(
         day: export_series.get(day, Decimal("0")) - import_series.get(day, Decimal("0"))
         for day in days
     }
+
+
+def _sum_series_from(series: dict[date, Decimal], start_day: date) -> Decimal | None:
+    values = [value for day, value in series.items() if day >= start_day]
+    if not values:
+        return None
+    return sum(values, Decimal("0"))
 
 
 def _iter_date_chunks(
