@@ -46,7 +46,11 @@ class MojelektroData:
     today_consumption_kwh: Decimal | None
     today_export_kwh: Decimal | None
     today_balance_kwh: Decimal | None
+    month_import_kwh: Decimal | None
+    month_export_kwh: Decimal | None
     month_balance_kwh: Decimal | None
+    year_import_kwh: Decimal | None
+    year_export_kwh: Decimal | None
     year_balance_kwh: Decimal | None
     max_import_power_kw: Decimal | None
     max_export_power_kw: Decimal | None
@@ -87,11 +91,15 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
         today = date.today()
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
-        reading_types = [
+        today_reading_types = [
             READING_TYPE_CONSUMPTION,
             READING_TYPE_EXPORT,
             READING_TYPE_MAX_IMPORT_POWER,
             READING_TYPE_MAX_EXPORT_POWER,
+        ]
+        interval_energy_reading_types = [
+            READING_TYPE_CONSUMPTION,
+            READING_TYPE_EXPORT,
         ]
         state_reading_types = [
             READING_TYPE_STATE_CONSUMPTION,
@@ -103,13 +111,13 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 self.entry.data[CONF_USAGE_POINT],
                 today,
                 today,
-                reading_types,
+                today_reading_types,
             )
-            month_readings = await self._async_get_meter_readings_chunked(
+            month_interval_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
                 month_start,
                 today,
-                reading_types,
+                interval_energy_reading_types,
             )
             month_state_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
@@ -117,11 +125,11 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 today,
                 state_reading_types,
             )
-            year_readings = await self._async_get_meter_readings_chunked(
+            year_interval_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
                 year_start,
                 today,
-                reading_types,
+                interval_energy_reading_types,
             )
             year_state_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
@@ -135,10 +143,18 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
 
         today_consumption = _sum(today_readings.get(READING_TYPE_CONSUMPTION))
         today_export = _sum(today_readings.get(READING_TYPE_EXPORT))
-        month_consumption = _sum(month_readings.get(READING_TYPE_CONSUMPTION))
-        month_export = _sum(month_readings.get(READING_TYPE_EXPORT))
-        year_consumption = _sum(year_readings.get(READING_TYPE_CONSUMPTION))
-        year_export = _sum(year_readings.get(READING_TYPE_EXPORT))
+        month_consumption = _total_from_state(month_state_readings.get(READING_TYPE_STATE_CONSUMPTION))
+        month_export = _total_from_state(month_state_readings.get(READING_TYPE_STATE_EXPORT))
+        year_consumption = _total_from_state(year_state_readings.get(READING_TYPE_STATE_CONSUMPTION))
+        year_export = _total_from_state(year_state_readings.get(READING_TYPE_STATE_EXPORT))
+        if month_consumption is None:
+            month_consumption = _sum(month_interval_readings.get(READING_TYPE_CONSUMPTION))
+        if month_export is None:
+            month_export = _sum(month_interval_readings.get(READING_TYPE_EXPORT))
+        if year_consumption is None:
+            year_consumption = _sum(year_interval_readings.get(READING_TYPE_CONSUMPTION))
+        if year_export is None:
+            year_export = _sum(year_interval_readings.get(READING_TYPE_EXPORT))
         month_balance = _state_balance(
             month_state_readings.get(READING_TYPE_STATE_CONSUMPTION),
             month_state_readings.get(READING_TYPE_STATE_EXPORT),
@@ -169,7 +185,11 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             today_consumption_kwh=today_consumption,
             today_export_kwh=today_export,
             today_balance_kwh=_balance(today_consumption, today_export),
+            month_import_kwh=month_consumption,
+            month_export_kwh=month_export,
             month_balance_kwh=month_balance if month_balance is not None else _balance(month_consumption, month_export),
+            year_import_kwh=year_consumption,
+            year_export_kwh=year_export,
             year_balance_kwh=year_balance if year_balance is not None else _balance(year_consumption, year_export),
             max_import_power_kw=_max(today_readings.get(READING_TYPE_MAX_IMPORT_POWER)),
             max_export_power_kw=_max(today_readings.get(READING_TYPE_MAX_EXPORT_POWER)),

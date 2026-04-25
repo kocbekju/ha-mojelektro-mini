@@ -50,8 +50,20 @@
       "today_balance_kwh": {
         "name": "Danasnji saldo"
       },
+      "month_import_kwh": {
+        "name": "Mesecni odjem iz omrezja"
+      },
+      "month_export_kwh": {
+        "name": "Mesecna oddaja v omrezje"
+      },
       "month_balance_kwh": {
         "name": "Mesecni saldo"
+      },
+      "year_import_kwh": {
+        "name": "Letni odjem iz omrezja"
+      },
+      "year_export_kwh": {
+        "name": "Letna oddaja v omrezje"
       },
       "year_balance_kwh": {
         "name": "Letni saldo"

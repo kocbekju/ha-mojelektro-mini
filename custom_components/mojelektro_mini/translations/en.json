@@ -50,8 +50,20 @@
       "today_balance_kwh": {
         "name": "Today balance"
       },
+      "month_import_kwh": {
+        "name": "Month grid consumption"
+      },
+      "month_export_kwh": {
+        "name": "Month grid export"
+      },
       "month_balance_kwh": {
         "name": "Month balance"
+      },
+      "year_import_kwh": {
+        "name": "Year grid consumption"
+      },
+      "year_export_kwh": {
+        "name": "Year grid export"
       },
       "year_balance_kwh": {
         "name": "Year balance"
