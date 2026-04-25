@@ -1,0 +1,71 @@
+title: Mojelektro
+views:
+  - title: Mojelektro
+    path: mojelektro
+    icon: mdi:transmission-tower
+    cards:
+      - type: entities
+        title: Trenutno stanje
+        entities:
+          - entity: sensor.mojelektro_today_grid_consumption
+            name: Danasnji odjem
+          - entity: sensor.mojelektro_today_grid_export
+            name: Danasnja oddaja
+          - entity: sensor.mojelektro_today_balance
+            name: Danasnji saldo
+          - entity: sensor.mojelektro_month_balance
+            name: Mesecni saldo
+          - entity: sensor.mojelektro_year_balance
+            name: Letni saldo
+
+      - type: statistics-graph
+        title: Odjem in oddaja
+        chart_type: bar
+        days_to_show: 7
+        stat_types:
+          - sum
+        entities:
+          - entity: sensor.mojelektro_today_grid_consumption
+            name: Odjem
+          - entity: sensor.mojelektro_today_grid_export
+            name: Oddaja
+
+      - type: history-graph
+        title: 15-min moci
+        hours_to_show: 24
+        refresh_interval: 300
+        entities:
+          - entity: sensor.mojelektro_max_import_power_today
+            name: Odjemna moc
+          - entity: sensor.mojelektro_max_export_power_today
+            name: Oddajna moc
+
+      - type: gauge
+        entity: sensor.mojelektro_max_export_power_today
+        name: Max oddajna moc danes
+        min: 0
+        max: 14
+        severity:
+          green: 0
+          yellow: 8
+          red: 12
+
+      - type: entities
+        title: Dogovorjene meje
+        entities:
+          - entity: sensor.mojelektro_agreed_power_block_1
+            name: Blok 1
+          - entity: sensor.mojelektro_agreed_power_block_2
+            name: Blok 2
+          - entity: sensor.mojelektro_agreed_power_block_3
+            name: Blok 3
+          - entity: sensor.mojelektro_agreed_power_block_4
+            name: Blok 4
+          - entity: sensor.mojelektro_agreed_power_block_5
+            name: Blok 5
+          - entity: sensor.mojelektro_max_agreed_power
+            name: Max dogovorjena moc
+          - entity: sensor.mojelektro_allowed_export_power
+            name: Dovoljena oddajna moc
+          - entity: sensor.mojelektro_installed_production_power
+            name: Instalirana moc proizvodnje

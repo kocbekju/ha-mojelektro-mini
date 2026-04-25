@@ -1,0 +1,82 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mojelektro Mini",
+        "description": "Vnesi Moj Elektro API kljuc in identifikator merilnega mesta (EIMM). Integracija bo merilno tocko in registre odkrila samodejno.",
+        "data": {
+          "api_environment": "API okolje",
+          "api_token": "API kljuc",
+          "eimm": "Identifikator merilnega mesta (EIMM)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Povezava na Moj Elektro API s temi podatki ni uspela.",
+      "cannot_resolve_metering_point": "API za ta identifikator ni vrnil merilnega mesta in OMTO merilne tocke."
+    },
+    "abort": {
+      "already_configured": "To merilno mesto je ze nastavljeno."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mojelektro Mini",
+        "description": "Prilagodi izvajalne nastavitve integracije.",
+        "data": {
+          "poll_interval_minutes": "Interval osvezevanja (minute)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today_consumption_kwh": {
+        "name": "Danasnji odjem iz omrezja"
+      },
+      "today_export_kwh": {
+        "name": "Danasnja oddaja v omrezje"
+      },
+      "today_balance_kwh": {
+        "name": "Danasnji saldo"
+      },
+      "month_balance_kwh": {
+        "name": "Mesecni saldo"
+      },
+      "year_balance_kwh": {
+        "name": "Letni saldo"
+      },
+      "max_import_power_kw": {
+        "name": "Najvecja odjemna moc danes"
+      },
+      "max_export_power_kw": {
+        "name": "Najvecja oddajna moc danes"
+      },
+      "agreed_power_block_1_kw": {
+        "name": "Dogovorjena moc blok 1"
+      },
+      "agreed_power_block_2_kw": {
+        "name": "Dogovorjena moc blok 2"
+      },
+      "agreed_power_block_3_kw": {
+        "name": "Dogovorjena moc blok 3"
+      },
+      "agreed_power_block_4_kw": {
+        "name": "Dogovorjena moc blok 4"
+      },
+      "agreed_power_block_5_kw": {
+        "name": "Dogovorjena moc blok 5"
+      },
+      "max_agreed_power_kw": {
+        "name": "Najvecja dogovorjena moc"
+      },
+      "allowed_export_power_kw": {
+        "name": "Dovoljena moc oddaje"
+      },
+      "installed_production_power_kw": {
+        "name": "Instalirana moc proizvodnje"
+      }
+    }
+  }
+}

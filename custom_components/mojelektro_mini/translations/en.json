@@ -1,0 +1,82 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mojelektro Mini",
+        "description": "Enter the Moj Elektro API token and the metering place identifier (EIMM). The integration will discover the metering point and registers automatically.",
+        "data": {
+          "api_environment": "API environment",
+          "api_token": "API token",
+          "eimm": "Metering place identifier (EIMM)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the Moj Elektro API with these credentials.",
+      "cannot_resolve_metering_point": "The API did not return a usage point and OMTO metering point for this identifier."
+    },
+    "abort": {
+      "already_configured": "This usage point is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mojelektro Mini",
+        "description": "Adjust runtime settings for the integration.",
+        "data": {
+          "poll_interval_minutes": "Fetch interval (minutes)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today_consumption_kwh": {
+        "name": "Today grid consumption"
+      },
+      "today_export_kwh": {
+        "name": "Today grid export"
+      },
+      "today_balance_kwh": {
+        "name": "Today balance"
+      },
+      "month_balance_kwh": {
+        "name": "Month balance"
+      },
+      "year_balance_kwh": {
+        "name": "Year balance"
+      },
+      "max_import_power_kw": {
+        "name": "Max import power today"
+      },
+      "max_export_power_kw": {
+        "name": "Max export power today"
+      },
+      "agreed_power_block_1_kw": {
+        "name": "Agreed power block 1"
+      },
+      "agreed_power_block_2_kw": {
+        "name": "Agreed power block 2"
+      },
+      "agreed_power_block_3_kw": {
+        "name": "Agreed power block 3"
+      },
+      "agreed_power_block_4_kw": {
+        "name": "Agreed power block 4"
+      },
+      "agreed_power_block_5_kw": {
+        "name": "Agreed power block 5"
+      },
+      "max_agreed_power_kw": {
+        "name": "Max agreed power"
+      },
+      "allowed_export_power_kw": {
+        "name": "Allowed export power"
+      },
+      "installed_production_power_kw": {
+        "name": "Installed production power"
+      }
+    }
+  }
+}
