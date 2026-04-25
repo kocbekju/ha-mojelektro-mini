@@ -1,4 +1,4 @@
-# Mojelektro Mini Documentation
+# Stanje net metering SLO Documentation
 
 Start the add-on and open the Web UI from Home Assistant.
 

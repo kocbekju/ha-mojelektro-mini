@@ -1,4 +1,4 @@
-# ha-mojelektro-mini
+# Stanje net metering SLO
 
 Home Assistant integration repository for Moj Elektro 15-minute readings and solar/grid balance sensors.
 

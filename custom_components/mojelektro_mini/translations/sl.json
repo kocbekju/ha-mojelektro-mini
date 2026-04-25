@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Mojelektro Mini",
+        "title": "Stanje net metering SLO",
         "description": "Vnesi Moj Elektro API kljuc in identifikator merilnega mesta (EIMM). Integracija bo merilno tocko in registre odkrila samodejno.",
         "data": {
           "api_environment": "API okolje",
@@ -22,7 +22,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Mojelektro Mini",
+        "title": "Stanje net metering SLO",
         "description": "Prilagodi izvajalne nastavitve integracije.",
         "data": {
           "poll_interval_minutes": "Interval osvezevanja (minute)"

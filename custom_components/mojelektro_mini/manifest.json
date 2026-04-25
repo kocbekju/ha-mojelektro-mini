@@ -1,6 +1,6 @@
 {
   "domain": "mojelektro_mini",
-  "name": "Mojelektro Mini",
+  "name": "Stanje net metering SLO",
   "codeowners": ["@kocbekju"],
   "config_flow": true,
   "documentation": "https://github.com/kocbekju/ha-mojelektro-mini",

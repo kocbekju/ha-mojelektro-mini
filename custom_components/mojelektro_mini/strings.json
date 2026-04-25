@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Mojelektro Mini",
+        "title": "Stanje net metering SLO",
         "description": "Enter the Moj Elektro API token and the metering place identifier (EIMM). The integration will discover the metering point and registers automatically.",
         "data": {
           "api_environment": "API environment",
@@ -22,7 +22,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Mojelektro Mini",
+        "title": "Stanje net metering SLO",
         "description": "Adjust runtime settings for the integration.",
         "data": {
           "poll_interval_minutes": "Fetch interval (minutes)"

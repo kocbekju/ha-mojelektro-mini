@@ -81,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mojelektro Mini</title>
+  <title>Stanje net metering SLO</title>
   <style>
     body {{
       margin: 0;
@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
 </head>
 <body>
   <main>
-    <h1>Mojelektro Mini</h1>
+    <h1>Stanje net metering SLO</h1>
     <p>Add-on service is running.</p>
     <dl>
       <dt>Username</dt>
@@ -143,7 +143,7 @@ def configure_logging() -> None:
 
 def main() -> None:
     configure_logging()
-    logging.info("Mojelektro Mini listening on %s:%s", HOST, PORT)
+    logging.info("Stanje net metering SLO listening on %s:%s", HOST, PORT)
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.serve_forever()
 

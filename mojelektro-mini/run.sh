@@ -5,6 +5,6 @@ set -e
 LOG_LEVEL="$(bashio::config 'log_level')"
 export LOG_LEVEL
 
-bashio::log.info "Starting Mojelektro Mini"
+bashio::log.info "Starting Stanje net metering SLO"
 
 exec python3 /usr/src/mojelektro_mini/main.py

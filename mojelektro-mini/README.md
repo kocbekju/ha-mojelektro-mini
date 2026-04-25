@@ -1,4 +1,4 @@
-# Mojelektro Mini
+# Stanje net metering SLO
 
 Minimal Home Assistant add-on shell for Mojelektro data.
 
