@@ -30,6 +30,7 @@ from .const import (
 
 
 LOGGER = logging.getLogger(__name__)
+MAX_API_INTERVAL_DAYS = 35
 
 
 @dataclass(frozen=True)
@@ -90,13 +91,13 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
                 today,
                 reading_types,
             )
-            month_readings = await self.client.async_get_meter_readings(
+            month_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
                 month_start,
                 today,
                 reading_types,
             )
-            year_readings = await self.client.async_get_meter_readings(
+            year_readings = await self._async_get_meter_readings_chunked(
                 self.entry.data[CONF_USAGE_POINT],
                 year_start,
                 today,
@@ -154,6 +155,27 @@ class MojelektroCoordinator(DataUpdateCoordinator[MojelektroData]):
             _decimal(active.get("casovniBlok5")),
         )
 
+    async def _async_get_meter_readings_chunked(
+        self,
+        usage_point: str,
+        start: date,
+        end: date,
+        reading_types: list[str],
+    ) -> dict[str, list[ReadingPoint]]:
+        merged: dict[str, list[ReadingPoint]] = {}
+
+        for chunk_start, chunk_end in _iter_date_chunks(start, end, MAX_API_INTERVAL_DAYS):
+            payload = await self.client.async_get_meter_readings(
+                usage_point,
+                chunk_start,
+                chunk_end,
+                reading_types,
+            )
+            for reading_type, points in payload.items():
+                merged.setdefault(reading_type, []).extend(points)
+
+        return merged
+
 
 def _valid_points(points: list[ReadingPoint] | None) -> list[ReadingPoint]:
     invalid_quality_types = {
@@ -194,6 +216,23 @@ def _balance(consumption: Decimal | None, export: Decimal | None) -> Decimal | N
     if consumption is not None and export is not None:
         return export - consumption
     return None
+
+
+def _iter_date_chunks(
+    start: date,
+    end: date,
+    max_days: int,
+) -> list[tuple[date, date]]:
+    chunks: list[tuple[date, date]] = []
+    current = start
+    max_span = timedelta(days=max_days - 1)
+
+    while current <= end:
+        chunk_end = min(current + max_span, end)
+        chunks.append((current, chunk_end))
+        current = chunk_end + timedelta(days=1)
+
+    return chunks
 
 
 def _select_active_agreed_power(

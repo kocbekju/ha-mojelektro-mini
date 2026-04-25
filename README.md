@@ -37,6 +37,8 @@ From that, the integration resolves:
 
 The fetch interval is configurable later in Home Assistant via the integration `Configure` action.
 
+For monthly and yearly saldo, the integration automatically splits API requests into chunks because Moj Elektro limits a single date interval request to 35 days.
+
 ## Target Sensors
 
 Planned first sensors:
