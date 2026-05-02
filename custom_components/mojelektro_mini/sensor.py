@@ -20,7 +20,7 @@ class SensorDescription:
     name: str
     unit: str
     device_class: SensorDeviceClass
-    state_class: SensorStateClass
+    state_class: SensorStateClass | None
 
 
 SENSORS = (
@@ -29,21 +29,21 @@ SENSORS = (
         "Daily grid consumption",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        SensorStateClass.MEASUREMENT,
+        None,
     ),
     SensorDescription(
         "daily_export_kwh",
         "Daily grid export",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        SensorStateClass.MEASUREMENT,
+        None,
     ),
     SensorDescription(
         "daily_balance_kwh",
         "Daily balance",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        SensorStateClass.MEASUREMENT,
+        None,
     ),
     SensorDescription(
         "today_consumption_kwh",
