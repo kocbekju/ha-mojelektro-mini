@@ -68,7 +68,7 @@ With the example `imported=10 kWh`, `production=60 kWh`, `exported=45 kWh`, the 
 
 For monthly and yearly saldo, the integration prefers Moj Elektro `24 h` state readings with reset handling so the result matches the portal more closely than a plain sum of `15-min` intervals.
 
-The integration also backfills daily import, daily export, and daily balance statistics from the start of the current year so Home Assistant graphs can show history from `1.1.` onward.
+Home Assistant records long-term statistics for the daily import, daily export, and daily balance sensors from the time the integration is installed.
 
 ## Visualization
 

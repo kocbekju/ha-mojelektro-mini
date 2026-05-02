@@ -20,7 +20,7 @@ class SensorDescription:
     name: str
     unit: str
     device_class: SensorDeviceClass
-    state_class: SensorStateClass | None
+    state_class: SensorStateClass
 
 
 SENSORS = (
@@ -29,21 +29,21 @@ SENSORS = (
         "Daily grid consumption",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        None,
+        SensorStateClass.MEASUREMENT,
     ),
     SensorDescription(
         "daily_export_kwh",
         "Daily grid export",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        None,
+        SensorStateClass.MEASUREMENT,
     ),
     SensorDescription(
         "daily_balance_kwh",
         "Daily balance",
         UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY,
-        None,
+        SensorStateClass.MEASUREMENT,
     ),
     SensorDescription(
         "today_consumption_kwh",
@@ -213,15 +213,6 @@ class MojelektroSensor(CoordinatorEntity[MojelektroCoordinator], SensorEntity):
             "name": entry.data.get(CONF_METERING_POINT_NAME, f"Mojelektro {entry.data[CONF_USAGE_POINT]}"),
             "manufacturer": "Moj Elektro",
         }
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        if self._description.key.startswith("daily_"):
-            await self.coordinator.async_register_daily_statistic_entity(
-                self._description.key,
-                self.entity_id,
-                self.name,
-            )
 
     @property
     def native_value(self) -> Decimal | None:
