@@ -89,7 +89,8 @@ class MojelektroConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class MojelektroOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+        super().__init__()
+        self._config_entry = config_entry
 
     async def async_step_init(
         self,
@@ -104,7 +105,7 @@ class MojelektroOptionsFlow(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_POLL_INTERVAL_MINUTES,
-                        default=self.config_entry.options.get(
+                        default=self._config_entry.options.get(
                             CONF_POLL_INTERVAL_MINUTES,
                             DEFAULT_POLL_INTERVAL_MINUTES,
                         ),
